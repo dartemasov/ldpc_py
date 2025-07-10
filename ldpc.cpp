@@ -198,7 +198,8 @@ void layered_min_sum(const TannerGraph         & tng,
                      const std::vector<index_t>& row_seq,
                      const std::vector<double> & scales,
                      const std::vector<double> & offsets,
-                     double                     *llr_out)
+                     double                     *llr_out,
+                     double                     *llr_out_intermediate)
 {
   Matrix<double> r_msg(tng.m, tng.rmax, 0);
 
@@ -264,6 +265,10 @@ void layered_min_sum(const TannerGraph         & tng,
         llr_out[tng.row_col(j, k)] += r_msg(j, k);
       }
     } // Loop over parity checks
+    for (index_t i = 0; i < tng.n; i++) {
+      llr_out_intermediate[loop*tng.n+i] = llr_out[i];
+    }
+    
   }   // Loop over iteration
 }
 
@@ -273,7 +278,8 @@ void min_sum(const TannerGraph        & ldpc,
              index_t                    n_iter,
              const std::vector<double>& scales,
              const std::vector<double>& offsets,
-             double                    *llr_out)
+             double                    *llr_out,
+             double                    *llr_out_intermediate)
 {
   // Auxiliary matrices
   Matrix<double> r_msg(ldpc.m, ldpc.rmax); // messages from check to variable
@@ -361,6 +367,7 @@ void min_sum(const TannerGraph        & ldpc,
       {
         q_msg(ldpc.msgs_col(i, k)) = llr_out[i] - r_msg(ldpc.msgs_col(i, k));
       }
+      llr_out_intermediate[loop*ldpc.n+i] = llr_out[i];
     } // Loop over variable nodes
   }   // Loop over decoding iterations
 }
@@ -386,7 +393,8 @@ static double logtanh(double x) {
 void sum_product(const TannerGraph        & ldpc,
                  const std::vector<double>& llr_in,
                  index_t                    n_iter,
-                 double                    *llr_out)
+                 double                    *llr_out,
+                 double                    *llr_out_intermediate)
 {
   // Messages from check to variable nodes
   Matrix<double> r_msg(ldpc.m, ldpc.rmax);
@@ -461,6 +469,7 @@ void sum_product(const TannerGraph        & ldpc,
         }
         q_ltanh(ldpc.msgs_col(i, k)) = logtanh(fabs(temp));
       }
+      llr_out_intermediate[loop*ldpc.n+i] = llr_out[i];
     } // Loop over variable nodes
   }   // Loop over decoding iterations
 }

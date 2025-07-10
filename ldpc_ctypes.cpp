@@ -39,7 +39,8 @@ void decode_soft(index_t  command,
                  double  *llr_out_buf,
                  index_t *row_seq,
                  double  *scale_array,
-                 double  *offset_array) {
+                 double  *offset_array,
+                 double  *llr_out_intermediate) {
   TannerGraph *tng = static_cast<TannerGraph *>(tng_ptr);
 
   switch (command) {
@@ -47,7 +48,8 @@ void decode_soft(index_t  command,
       sum_product(*tng,
                   std::vector<double>(llr_in, llr_in + tng->n),
                   n_iterations,
-                  llr_out_buf);
+                  llr_out_buf,
+                  llr_out_intermediate);
       return;
     case 2:
       min_sum(*tng,
@@ -55,7 +57,8 @@ void decode_soft(index_t  command,
               n_iterations,
               std::vector<double>(scale_array,  scale_array + tng->n),
               std::vector<double>(offset_array, offset_array + tng->n),
-              llr_out_buf);
+              llr_out_buf,
+              llr_out_intermediate);
       return;
     case 3:
       layered_min_sum(*tng,
@@ -64,7 +67,8 @@ void decode_soft(index_t  command,
                       std::vector<index_t>(row_seq,      row_seq + tng->m),
                       std::vector<double>( scale_array,  scale_array + tng->n),
                       std::vector<double>( offset_array, offset_array + tng->n),
-                      llr_out_buf);
+                      llr_out_buf,
+                      llr_out_intermediate);
       return;
     default:
       std::cout << "Command " << command << " not supported." << std::endl;

@@ -207,6 +207,7 @@ def load_lib():
         np.ctypeslib.ndpointer(dtype=np.uint32),  # Row sequence
         np.ctypeslib.ndpointer(dtype=np.double),  # Scale array
         np.ctypeslib.ndpointer(dtype=np.double),  # Offset array
+        np.ctypeslib.ndpointer(dtype=np.double),  # Output intermediate LLRs
     ]
     # Destroy LDPC object
     lib.free_ldpc.restype = None
@@ -222,7 +223,7 @@ class LdpcDecoder:
     and provides all LDPC decoding routines
     """
 
-    def __init__(self, alist_filename):
+    def __init__(self, alist_filename, n_iterations, llr_scale=1.0):
         self.shared_object = load_lib()
         self.n_checks, self.block_len = Alist.read(alist_filename).shape
         self.ldpc_ptr = self.shared_object.init_ldpc(alist_filename.encode())
@@ -230,61 +231,55 @@ class LdpcDecoder:
         if not self.ldpc_ptr:
             raise RuntimeError('Failed to initialize decoder.')
 
-        self.scales = np.ones(self.block_len,)
+        self.n_iterations = n_iterations
+        self.scales = np.ones(self.block_len,) * llr_scale
         self.offsets = np.zeros(self.block_len,)
         self.row_sequence = np.arange(self.n_checks - 1, -1, -1).astype(np.uint32)
 
     def __del__(self):
         self.shared_object.free_ldpc(self.ldpc_ptr)
 
-    def sum_product(self, llr_in, n_iterations):
+    def sum_product(self, llr_in):
         """
         Run sum-product decoder (layered implementation)
         """
         # 0 = sum-product
-        return self.__decode_soft(0, llr_in, n_iterations)
+        return self.__decode_soft(0, llr_in)
 
-    def layered_min_sum(self, llr_in, n_iterations, llr_scale=1.0):
+    def layered_min_sum(self, llr_in):
         """
         Run layered min-sum decoder
         """
         # 3 = layered min-sum
-        return self.__decode_soft(3, llr_in, n_iterations, llr_scale)
+        return self.__decode_soft(3, llr_in)
 
-    def min_sum(self, llr_in, n_iterations, llr_scale=1.0):
+    def min_sum(self, llr_in):
         """
         Run min-sum decoder
         """
         # 2 = min-sum
-        return self.__decode_soft(2, llr_in, n_iterations, llr_scale)
+        return self.__decode_soft(2, llr_in)
 
-    def __decode_soft(self, decoder_type, llr_in, n_iterations, llr_scale=1.0):
+    def __decode_soft(self, decoder_type, llr_in):
         """
         Run C++ implementation
         """
         assert self.block_len == len(llr_in)
-        llr_out = np.zeros(self.block_len, dtype=np.double)
+        llr_out = np.zeros(self.block_len, dtype=np.float64)
+        llr_out_intermediate = np.zeros(len(llr_in)*self.n_iterations, dtype=np.float64)
         self.shared_object.decode_soft(
             decoder_type,
-            self.ldpc_ptr, llr_in, n_iterations, llr_out,
-            self.row_sequence, llr_scale * self.scales, self.offsets
+            self.ldpc_ptr,
+            llr_in,
+            self.n_iterations,
+            llr_out,
+            self.row_sequence,
+            self.scales,
+            self.offsets,
+            llr_out_intermediate
         )
-        return llr_out
+        return llr_out, llr_out_intermediate.reshape((self.n_iterations, len(llr_in)))
 
 
 if __name__ == '__main__':
     lib_compile()
-    Alist.write(
-        # (7, 3) hamming code
-        np.array([
-            [1, 0, 1, 0, 1, 0, 1],
-            [0, 1, 1, 0, 0, 1, 1],
-            [0, 0, 0, 1, 1, 1, 1]
-        ]),
-        'hamming.alist.txt'
-    )
-    N = 7
-    decoder = LdpcDecoder('hamming.alist.txt')
-    np.random.seed(2)
-    print(decoder.sum_product(-1 + np.random.randn(N,), 50))
-    print(decoder.min_sum(-1 + np.random.randn(N,), 50, llr_scale=1.0))

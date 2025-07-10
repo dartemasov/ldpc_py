@@ -154,7 +154,8 @@ void layered_min_sum(const TannerGraph         & tng,
                      const std::vector<index_t>& row_seq,
                      const std::vector<double> & scales,
                      const std::vector<double> & offsets,
-                     double                     *llr_out);
+                     double                     *llr_out,
+                     double                     *llr_out_intermediate);
 
 /**
  * Min-sum decoder. Layered processing assumes that
@@ -177,7 +178,8 @@ void min_sum(const TannerGraph        & tng,
              index_t                    n_iter,
              const std::vector<double>& scales,
              const std::vector<double>& offsets,
-             double                    *llr_out);
+             double                    *llr_out,
+             double                    *llr_out_intermediate);
 
 /**
  * Sum-product decoder. To avoid a product of hyperbolic tangents,
@@ -191,6 +193,7 @@ void min_sum(const TannerGraph        & tng,
 void sum_product(const TannerGraph        & ldpc,
                  const std::vector<double>& llr_in,
                  index_t                    n_iter,
-                 double                    *llr_out);
+                 double                    *llr_out,
+                 double                    *llr_out_intermediate);
 
 #endif  // LDPC_H_
