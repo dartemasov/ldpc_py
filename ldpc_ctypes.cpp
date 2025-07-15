@@ -27,6 +27,11 @@ void* init_ldpc(char *alist_path) {
 }
 
 extern "C"
+void* init_ldpc_from_pcm(int* pcm, int n_rows, int n_cols) {
+    return load_pcm(pcm, n_rows, n_cols);
+}
+
+extern "C"
 void free_ldpc(void *ldpc_ptr) {
   delete (static_cast<TannerGraph *>(ldpc_ptr));
 }

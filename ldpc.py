@@ -223,10 +223,22 @@ class LdpcDecoder:
     and provides all LDPC decoding routines
     """
 
-    def __init__(self, alist_filename, n_iterations, llr_scale=1.0):
+    def __init__(self, alist_filename, n_iterations, llr_scale=1.0, pcm=None):
         self.shared_object = load_lib()
-        self.n_checks, self.block_len = Alist.read(alist_filename).shape
-        self.ldpc_ptr = self.shared_object.init_ldpc(alist_filename.encode())
+        if pcm is None:
+            self.n_checks, self.block_len = Alist.read(alist_filename).shape
+            self.ldpc_ptr = self.shared_object.init_ldpc(alist_filename.encode())
+        else:
+            self.n_checks, self.block_len = pcm.shape
+            self.shared_object.init_ldpc_from_pcm.restype = ctypes.c_void_p
+            self.shared_object.init_ldpc_from_pcm.argtypes = [
+                np.ctypeslib.ndpointer(dtype=np.int32),
+                ctypes.c_int,
+                ctypes.c_int,
+            ]
+            self.ldpc_ptr = self.shared_object.init_ldpc_from_pcm(
+                pcm.astype(np.int32), self.n_checks, self.block_len
+            )
 
         if not self.ldpc_ptr:
             raise RuntimeError('Failed to initialize decoder.')
@@ -283,3 +295,18 @@ class LdpcDecoder:
 
 if __name__ == '__main__':
     lib_compile()
+
+    # Test with alist file
+    alist_file = 'test.alist'
+    pcm = np.array([[1, 1, 1, 0], [0, 1, 1, 1]])
+    Alist.write(pcm, alist_file)
+    decoder_alist = LdpcDecoder(alist_file, 10)
+    llr_in = np.random.randn(4)
+    llr_out_alist, _ = decoder_alist.sum_product(llr_in)
+
+    # Test with PCM
+    decoder_pcm = LdpcDecoder(None, 10, pcm=pcm)
+    llr_out_pcm, _ = decoder_pcm.sum_product(llr_in)
+
+    assert np.allclose(llr_out_alist, llr_out_pcm)
+    print('Test passed!')

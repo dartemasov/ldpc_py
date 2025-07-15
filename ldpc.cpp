@@ -192,6 +192,72 @@ TannerGraph* load_alist(const char *filename) {
   return tng;
 }
 
+TannerGraph* load_pcm(int* pcm, int n_rows, int n_cols) {
+    int cmax = 0;
+    for (int i = 0; i < n_cols; i++) {
+        int current_col_weight = 0;
+        for (int j = 0; j < n_rows; j++) {
+            current_col_weight += pcm[j * n_cols + i];
+        }
+        if (current_col_weight > cmax) {
+            cmax = current_col_weight;
+        }
+    }
+
+    int rmax = 0;
+    for (int i = 0; i < n_rows; i++) {
+        int current_row_weight = 0;
+        for (int j = 0; j < n_cols; j++) {
+            current_row_weight += pcm[i * n_cols + j];
+        }
+        if (current_row_weight > rmax) {
+            rmax = current_row_weight;
+        }
+    }
+
+    TannerGraph *tng = new TannerGraph(n_cols, n_rows, cmax, rmax);
+
+    for (int i = 0; i < n_cols; i++) {
+        int current_col_weight = 0;
+        for (int j = 0; j < n_rows; j++) {
+            current_col_weight += pcm[j * n_cols + i];
+        }
+        tng->col_weight[i] = current_col_weight;
+    }
+
+    for (int i = 0; i < n_rows; i++) {
+        int current_row_weight = 0;
+        for (int j = 0; j < n_cols; j++) {
+            current_row_weight += pcm[i * n_cols + j];
+        }
+        tng->row_weight[i] = current_row_weight;
+    }
+
+  std::vector<index_t> count = std::vector<index_t>(n_cols);
+  std::fill(count.begin(), count.end(), 0);
+
+  for (int i = 0; i < n_rows; i++) {
+    int current_row_weight = 0;
+    for (int j = 0; j < n_cols; j++) {
+        if (pcm[i * n_cols + j] == 1) {
+            tng->row_col(i, current_row_weight) = j;
+            tng->col_row(j, count[j]) = i;
+            tng->col_N(j, count[j]) = current_row_weight;
+            count[j]++;
+            current_row_weight++;
+        }
+    }
+  }
+
+  for (index_t i = 0; i < n_cols; i++) {
+    for (index_t j = 0; j < tng->col_weight[i]; j++) {
+      tng->msgs_col(i, j) = std::make_pair(tng->col_row(i, j),
+                                           tng->col_N(i, j));
+    }
+  }
+  return tng;
+}
+
 void layered_min_sum(const TannerGraph         & tng,
                      const std::vector<double> & llr_in,
                      index_t                     n_iter,

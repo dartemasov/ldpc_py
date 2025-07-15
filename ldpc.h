@@ -127,6 +127,9 @@ struct TannerGraph {
 /// Load Tanner graph from the alist file
 TannerGraph* load_alist(const char *filename);
 
+/// Load Tanner graph from a parity check matrix
+TannerGraph* load_pcm(int* pcm, int n_rows, int n_cols);
+
 /**
  * Layered Min-sum decoder. Layered processing assumes that
  * output LLRs are updated after each parity check processing.
